@@ -4,8 +4,7 @@
   * Adds to **Transmission** for downloading
   * Sends to an email address (for a seed server)
 * Checks completed torrents and
-  * Fix access rights of downloaded files
-  * Removed from download queue (do not seed in this side) and `.torrent` file
+  * Removed from download queue (do not seed in this side)
 
 
 ## Setup

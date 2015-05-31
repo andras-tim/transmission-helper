@@ -16,8 +16,5 @@
       "foo@bar.com"
     ],
     "emailSubject": "New torrent: {torrent}"
-  },
-  "doneTorrents": {
-    "permission": 770
   }
 }
