@@ -41,12 +41,18 @@ class TransmissionHelper:
         return self
 
     def __handle_new_torrent_file(self, torrent_path: str):
+        print(' * New: {}'.format(torrent_path))
         try:
             self.rpc.add_torrent('file://{}'.format(torrent_path))
-        except transmissionrpc.error.TransmissionError:
-            os.rename(torrent_path, '{}.error'.format(torrent_path))
-            return
-        self.__send_torrent_by_email(torrent_path)
+            self.__send_torrent_by_email(torrent_path)
+        except transmissionrpc.error.TransmissionError as e:
+            error_message = str(e)
+            if 'duplicate torrent' in error_message:
+                print('Duplicate')
+            else:
+                os.rename(torrent_path, '{}.error'.format(torrent_path))
+                print('Error: {}'.format(error_message))
+                return
         os.remove(torrent_path)
 
     def __send_torrent_by_email(self, torrent_path: str):
@@ -67,12 +73,17 @@ class TransmissionHelper:
     def check_completed_torrents(self):
         torrents = self.rpc.get_torrents()
         for torrent in torrents:
-            if torrent.doneDate:
+            if self.__is_torrent_done(torrent):
                 self.__handle_done_torrent(torrent)
         return self
 
     def __handle_done_torrent(self, torrent):
+        print(' * Done: {}'.format(torrent.name))
+        self.rpc.stop_torrent(torrent.id)
         self.rpc.remove_torrent(torrent.id, delete_data=False)
+
+    def __is_torrent_done(self, torrent) -> bool:
+        return torrent.status in {'stopped', 'seeding'} and torrent.progress == 100.0
 
 
 class MailSender:
@@ -101,22 +112,25 @@ class MailSender:
         self.smtp.close()
 
     def __make_attachment(self, file_path: str) -> MIMEBase:
-        file_name = os.path.basename(file_path)
         maintype, subtype = self.__get_mime_type_and_subtype(file_path)
 
-        with open(file_path) as fp:
-            if maintype == 'text':
-                message_part = MIMEText(fp.read(), _subtype=subtype)
-            elif maintype == 'image':
-                message_part = MIMEImage(fp.read(), _subtype=subtype)
-            elif maintype == 'audio':
-                message_part = MIMEAudio(fp.read(), _subtype=subtype)
-            else:
+        if maintype == 'text':
+            with open(file_path) as fd:
+                # Note: we should handle calculating the charset
+                message_part = MIMEText(fd.read(), _subtype=subtype)
+        elif maintype == 'image':
+            with open(file_path, 'rb') as fd:
+                message_part = MIMEImage(fd.read(), _subtype=subtype)
+        elif maintype == 'audio':
+            with open(file_path, 'rb') as fd:
+                message_part = MIMEAudio(fd.read(), _subtype=subtype)
+        else:
+            with open(file_path, 'rb') as fd:
                 message_part = MIMEBase(maintype, subtype)
-                message_part.set_payload(fp.read())
-                encoders.encode_base64(message_part)
-            message_part.add_header('Content-Disposition', 'attachment', filename=file_name)
-
+                message_part.set_payload(fd.read())
+            # Encode the payload using Base64
+            encoders.encode_base64(message_part)
+        message_part.add_header('Content-Disposition', 'attachment', filename=os.path.basename(file_path))
         return message_part
 
     def __get_mime_type_and_subtype(self, file_path) -> tuple:
