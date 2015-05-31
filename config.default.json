@@ -1,0 +1,23 @@
+{
+  "transmissionRpc": {
+    "host": "localhost",
+    "port": null,
+    "username": null,
+    "password": null
+  },
+  "emailDelivery": {
+    "host": "smtp.server",
+    "port": 25
+  },
+  "newTorrents": {
+    "watchPath": "/tmp/new_torrents",
+    "emailSender": "transmission@bar.com",
+    "emailRecipients": [
+      "foo@bar.com"
+    ],
+    "emailSubject": "New torrent: {torrent}"
+  },
+  "doneTorrents": {
+    "permission": 770
+  }
+}
